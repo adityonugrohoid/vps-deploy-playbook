@@ -1,0 +1,276 @@
+##############################################################################
+# docker-compose.yml — Full multi-app stack template
+#
+# This template shows how 21+ services are organized in production.
+# Service names, ports, and paths are anonymized — adapt to your apps.
+#
+# Prerequisites:
+#   docker network create app-network
+#
+# Usage:
+#   docker compose up -d                      # Start all standard services
+#   docker compose --profile ml up -d         # Include ML/GPU services
+#   docker compose up -d app-portfolio        # Start a single service
+##############################################################################
+
+networks:
+  app-network:
+    external: true
+
+services:
+
+  # ════════════════════════════════════════════════════════════════════
+  # Infrastructure
+  # ════════════════════════════════════════════════════════════════════
+
+  nginx:
+    image: nginx:alpine
+    container_name: infra-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+
+  # ════════════════════════════════════════════════════════════════════
+  # Shared Services
+  # ════════════════════════════════════════════════════════════════════
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: svc-chromadb
+    restart: unless-stopped
+    volumes:
+      - ./services/chromadb/data:/chroma/chroma
+    environment:
+      - ANONYMIZED_TELEMETRY=false
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  redis:
+    image: redis:7-alpine
+    container_name: svc-redis
+    restart: unless-stopped
+    volumes:
+      - ./services/redis/data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: svc-ollama
+    restart: unless-stopped
+    profiles: ["ml"]
+    volumes:
+      - ./services/ollama/models:/root/.ollama
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 4G
+        reservations:
+          memory: 2G
+
+  # ════════════════════════════════════════════════════════════════════
+  # Base Tier Apps (~500MB image, lightweight services)
+  # ════════════════════════════════════════════════════════════════════
+
+  app-portfolio:
+    build:
+      context: ./apps/portfolio
+    container_name: app-portfolio
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      chromadb:
+        condition: service_healthy
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 384M
+        reservations:
+          memory: 128M
+
+  app-chatbot:
+    build:
+      context: ./apps/chatbot
+    container_name: app-chatbot
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      chromadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 384M
+        reservations:
+          memory: 128M
+
+  app-knowledge-base:
+    build:
+      context: ./apps/knowledge-base
+    container_name: app-knowledge-base
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      chromadb:
+        condition: service_healthy
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 384M
+        reservations:
+          memory: 128M
+
+  app-api-gateway:
+    build:
+      context: ./apps/api-gateway
+    container_name: app-api-gateway
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  app-dashboard:
+    build:
+      context: ./apps/dashboard
+    container_name: app-dashboard
+    restart: unless-stopped
+    env_file: .env
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 384M
+        reservations:
+          memory: 128M
+
+  # ════════════════════════════════════════════════════════════════════
+  # ML Tier Apps (~2.5GB image, compute-heavy services)
+  # ════════════════════════════════════════════════════════════════════
+
+  app-embedder:
+    build:
+      context: ./apps/embedder
+    container_name: app-embedder
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      chromadb:
+        condition: service_healthy
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 1G
+
+  app-classifier:
+    build:
+      context: ./apps/classifier
+    container_name: app-classifier
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      chromadb:
+        condition: service_healthy
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 1G
+
+  app-summarizer:
+    build:
+      context: ./apps/summarizer
+    container_name: app-summarizer
+    restart: unless-stopped
+    env_file: .env
+    profiles: ["ml"]
+    depends_on:
+      chromadb:
+        condition: service_healthy
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 1G
