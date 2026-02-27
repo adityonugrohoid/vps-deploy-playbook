@@ -1,0 +1,96 @@
+##############################################################################
+# docker-compose.base.yml — Foundation template for multi-app VPS deployment
+#
+# This template demonstrates the core patterns:
+# - External shared network (all containers can reach each other)
+# - Explicit container naming
+# - Restart policy for production resilience
+# - Bind mounts for transparent data management
+#
+# Usage:
+#   1. Create the external network first: docker network create app-network
+#   2. Copy this file and adapt for your services
+#   3. Run: docker compose -f docker-compose.base.yml up -d
+##############################################################################
+
+networks:
+  app-network:
+    external: true
+
+services:
+  # ──────────────────────────────────────────
+  # Shared Services
+  # ──────────────────────────────────────────
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: chromadb
+    restart: unless-stopped
+    volumes:
+      - ./shared/chromadb/data:/chroma/chroma
+    environment:
+      - ANONYMIZED_TELEMETRY=false
+    networks:
+      - app-network
+
+  # ──────────────────────────────────────────
+  # Application Services (Base Tier — ~500MB)
+  # ──────────────────────────────────────────
+
+  app-a:
+    build:
+      context: ./app-a
+      dockerfile: Dockerfile
+    container_name: app-a
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - CHROMADB_HOST=chromadb
+      - CHROMADB_PORT=8000
+    depends_on:
+      - chromadb
+    networks:
+      - app-network
+
+  app-b:
+    build:
+      context: ./app-b
+      dockerfile: Dockerfile
+    container_name: app-b
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - CHROMADB_HOST=chromadb
+      - CHROMADB_PORT=8000
+    depends_on:
+      - chromadb
+    networks:
+      - app-network
+
+  # ──────────────────────────────────────────
+  # Application Services (ML Tier — ~2.5GB)
+  # ──────────────────────────────────────────
+
+  app-ml:
+    build:
+      context: ./app-ml
+      dockerfile: Dockerfile
+    container_name: app-ml
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - CHROMADB_HOST=chromadb
+      - CHROMADB_PORT=8000
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+    depends_on:
+      - chromadb
+    networks:
+      - app-network
