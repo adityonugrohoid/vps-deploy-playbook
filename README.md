@@ -21,6 +21,8 @@ Most Docker tutorials teach you commands. This playbook teaches you **architectu
 | [04 - Multi-App Architecture](./04-multi-app-architecture/) | Image layering, shared services | 500MB base vs 2.5GB ML tier strategy |
 | [05 - Selective Updates](./05-selective-updates/) | Per-app deploy scripts | Update one container, not twenty-one |
 | [06 - Monitoring](./06-monitoring/) | Logs, health checks, alerts | Know before your users do |
+| [07 - Automated Backups](./07-automated-backups/) | Volume backups, off-site storage | Protect data you can't rebuild |
+| [08 - CI/CD](./08-ci-cd/) | GitHub Actions, auto-deploy | Push to main, deploy to VPS |
 
 ## Architecture Overview
 
@@ -77,9 +79,19 @@ Built from real production experience running 21+ containerized services on a si
 
 **Author:** [Adityo Nugroho](https://github.com/adityonugrohoid) — AI Solutions Engineer with 18+ years in high-throughput network operations.
 
+## Reference Docs
+
+| Document | Description |
+|----------|-------------|
+| [Troubleshooting](./TROUBLESHOOTING.md) | Common issues and fixes |
+| [Security Checklist](./SECURITY_CHECKLIST.md) | Hardening audit reference |
+| [FAQ](./FAQ.md) | Frequently asked questions |
+| [Environment Variables](./docker-compose.env.md) | All config variables |
+| [Makefile](./Makefile) | Common operations (`make deploy s=app`) |
+
 ## Contributing
 
-Found a better pattern? Open a PR. Spotted an error? Open an issue. This playbook improves with community input.
+Found a better pattern? See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines. Open a PR or an issue — this playbook improves with community input.
 
 ## License
 
