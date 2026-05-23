@@ -3,13 +3,13 @@
 # VPS Deploy Playbook
 
 [![Shell](https://img.shields.io/badge/shell-bash-blue.svg)](https://www.gnu.org/software/bash/)
-[![Docker](https://img.shields.io/badge/Docker-Compose-blue.svg)](https://docs.docker.com/compose/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg)](https://docs.docker.com/compose/)
 [![Nginx](https://img.shields.io/badge/Nginx-Reverse%20Proxy-green.svg)](https://nginx.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Deploy multiple apps on a single VPS with Docker, from zero to production. Battle-tested patterns from running 21+ containers.**
+**Deploy multiple apps on a single VPS with Docker, from zero to production. Patterns from 21+ live containers**
 
-[Getting Started](#getting-started) | [Chapters](#chapters) | [How It Works](#how-it-works) | [FAQ](./FAQ.md)
+[Getting Started](#getting-started) | [Chapters](#chapters) | [How It Works](#how-it-works)
 
 </div>
 
